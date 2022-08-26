@@ -31,7 +31,7 @@ class TimecodeInput extends HTMLInputElement {
   ];
 
   static get observedAttributes() {
-    return ["value", "placeholder", "min", "max"];
+    return ["placeholder", "min", "max"];
   }
 
   constructor() {
@@ -97,8 +97,6 @@ class TimecodeInput extends HTMLInputElement {
   set value(value) {
     this._setNumericalValue(value);
     this._updateTextualValue();
-
-    this.dispatchEvent(new Event("input"));
   }
 
   _onFocus() {
@@ -232,6 +230,7 @@ class TimecodeInput extends HTMLInputElement {
 
     if (this._isValueValid(pasted_data)) {
       this.value = this._getNumericalValue(pasted_data);
+      this.dispatchEvent(new Event("input"));
     }
 
     evt.preventDefault();
@@ -329,6 +328,7 @@ class TimecodeInput extends HTMLInputElement {
   _incrementSegmentValue(index) {
     this.value += this.constructor.SEGMENTS[index].multiplier;
     this._updateSelection();
+    this.dispatchEvent(new Event("input"));
   }
 
   /**
@@ -338,6 +338,7 @@ class TimecodeInput extends HTMLInputElement {
   _decrementSegmentValue(index) {
     this.value -= this.constructor.SEGMENTS[index].multiplier;
     this._updateSelection();
+    this.dispatchEvent(new Event("input"));
   }
 
   /**
@@ -357,7 +358,8 @@ class TimecodeInput extends HTMLInputElement {
       matches.shift();
 
       matches.forEach((match, i) => {
-        value += parseInt(matches[i], 10) * this.constructor.SEGMENTS[i].multiplier;
+        value +=
+          parseInt(matches[i], 10) * this.constructor.SEGMENTS[i].multiplier;
       });
     }
 
@@ -453,10 +455,6 @@ class TimecodeInput extends HTMLInputElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     switch (name) {
-      case "value":
-        this.value = newValue;
-        break;
-
       case "placeholder":
         this._options.placeholder = newValue;
         this._updateTextualValue();
@@ -477,6 +475,8 @@ class TimecodeInput extends HTMLInputElement {
 
 export default TimecodeInput;
 
-if (!window.customElements.get('timecode-input')) {
-  window.customElements.define("timecode-input", TimecodeInput, { extends: "input" });
+if (!window.customElements.get("timecode-input")) {
+  window.customElements.define("timecode-input", TimecodeInput, {
+    extends: "input",
+  });
 }
