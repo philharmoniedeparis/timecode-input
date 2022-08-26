@@ -1,0 +1,16 @@
+{
+    "name": "timecode-input",
+    "version": "1.0.0-alpha1",
+    "description": "A custom HTML input element for media timecodes",
+    "private": true,
+    "main": "index.js",
+    "keywords": [
+        "web-components"
+    ],
+    "devDependencies": {
+        "eslint": "^8.9.0",
+        "eslint-config-prettier": "^8.3.0",
+        "eslint-plugin-prettier": "^4.0.0",
+        "prettier": "^2.5.1"
+    }
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Timecode input demo</title>
+    <script src="./index.js"></script>
+    <style>
+      input[is="timecode-input"] {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <input is="timecode-input"></input>
+    <br/>
+    <br/>
+    <button class="value">Set value to</button>
+    <input type="number" class="value" />
+    <br/>
+    <button class="max">Set max to</button>
+    <input type="number" class="max" />
+    <br/>
+    <button class="min">Set min to</button>
+    <input type="number" class="min" />
+    <br/>
+    <button class="clear">Clear</button>
+
+    <script>
+      const input = document.querySelector("input[is='timecode-input']");
+
+      document.querySelector("button.clear").addEventListener("click", () => {
+        input.value = null;
+      });
+
+      document.querySelector("button.value").addEventListener("click", () => {
+        input.setAttribute("value", document.querySelector("input.value").value);
+      });
+
+      document.querySelector("button.max").addEventListener("click", () => {
+        input.setAttribute("max", document.querySelector("input.max").value);
+      });
+
+      document.querySelector("button.min").addEventListener("click", () => {
+        input.setAttribute("min", document.querySelector("input.min").value);
+      });
+    </script>
+  </body>
+</html>
