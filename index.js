@@ -104,6 +104,8 @@
     set value(value) {
       this._setNumericalValue(value);
       this._updateTextualValue();
+
+    this.dispatchEvent(new Event("input"));
     }
 
     _onFocus() {
@@ -423,9 +425,7 @@
         this._state._dirty = false;
         this.value = this._getNumericalValue(super.value);
 
-        this.dispatchEvent(new CustomEvent("change", {
-          bubbles: true,
-        }));
+      this.dispatchEvent(new Event("change"));
       }
     }
 
