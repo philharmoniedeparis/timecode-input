@@ -363,11 +363,15 @@
     }
 
     _setNumericalValue(value) {
-      this._state.value = value;
+    this._state.value = parseFloat(value);
 
-      if (this._state.value === null) return;
+    if (isNaN(this._state.value)) {
+      this._state.value = null;
+      return;
+    }
 
-      this._state.value = Math.round((parseFloat(this._state.value) + Number.EPSILON) * 100) / 100;
+    this._state.value =
+      Math.round((this._state.value + Number.EPSILON) * 100) / 100;
 
       if (this._options.min !== null) {
         this._state.value = Math.max(this._state.value, this._options.min);
@@ -460,8 +464,12 @@
 
         case "min":
         case "max":
-          this._options[name] = parseFloat(newValue);
-          this.value = this.value;
+        {
+          const value = parseFloat(newValue);
+          this._options[name] = !isNaN(value) ? value : null;
+          this._setNumericalValue(value);
+          this._updateTextualValue();
+        }
           break;
       }
     }
