@@ -31,7 +31,7 @@ class TimecodeInput extends HTMLInputElement {
   ];
 
   static get observedAttributes() {
-    return ["placeholder", "min", "max"];
+    return ["value", "placeholder", "min", "max"];
   }
 
   constructor() {
@@ -88,6 +88,8 @@ class TimecodeInput extends HTMLInputElement {
        */
       dirty: false,
     };
+
+    this._updateFormattedValue();
   }
 
   get value() {
@@ -459,6 +461,10 @@ class TimecodeInput extends HTMLInputElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     switch (name) {
+      case "value":
+        this.value = newValue;
+        break;
+
       case "placeholder":
         this._options.placeholder = newValue;
         this._updateFormattedValue();
