@@ -95,8 +95,12 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   set value(value) {
-    this._setNumericalValue(value);
-    this._updateTextualValue();
+    this._setValue(value);
+    this._updateFormattedValue();
+  }
+
+  get formattedValue() {
+    return super.value;
   }
 
   _onFocus() {
@@ -228,8 +232,8 @@ class TimecodeInput extends HTMLInputElement {
     const clipboard_data = evt.clipboardData || window.clipboardData;
     const pasted_data = clipboard_data.getData("Text");
 
-    if (this._isValueValid(pasted_data)) {
-      this.value = this._getNumericalValue(pasted_data);
+    if (this._isFormattedValueValid(pasted_data)) {
+      this.value = this._getValue(pasted_data);
       this.dispatchEvent(new Event("input"));
     }
 
@@ -240,7 +244,7 @@ class TimecodeInput extends HTMLInputElement {
    * Helper function to check if a certain value is a valid textual value
    * @param {string} value The value to check
    */
-  _isValueValid(value) {
+  _isFormattedValueValid(value) {
     return this._regexp.test(value);
   }
 
@@ -298,16 +302,16 @@ class TimecodeInput extends HTMLInputElement {
    * @param {string} value The segment's value
    */
   _setSegmentValue(index, value) {
-    let textual_value = super.value;
-    const matches = textual_value.match(this._regexp);
+    let formatted_value = super.value;
+    const matches = formatted_value.match(this._regexp);
 
     if (matches) {
-      textual_value = "";
+      formatted_value = "";
       matches.shift();
 
       matches.forEach((match, i) => {
-        textual_value += this.constructor.SEGMENTS[i].prefix;
-        textual_value +=
+        formatted_value += this.constructor.SEGMENTS[i].prefix;
+        formatted_value +=
           i === index
             ? value
             : matches[i] === this._options.placeholder
@@ -315,7 +319,7 @@ class TimecodeInput extends HTMLInputElement {
             : matches[i];
       });
 
-      this._setTextualValue(textual_value);
+      this._setFormattedValue(formatted_value);
 
       this._state._dirty = true;
     }
@@ -343,16 +347,16 @@ class TimecodeInput extends HTMLInputElement {
 
   /**
    * Helper function to convert a textual value to a numerical one
-   * @param {string} textual_value The textual value
+   * @param {string} formatted_value The textual value
    * @return {number} The numercial value
    */
-  _getNumericalValue(textual_value) {
-    if (textual_value.indexOf(this._options.placeholder) !== -1) {
+  _getValue(formatted_value) {
+    if (formatted_value.indexOf(this._options.placeholder) !== -1) {
       return null;
     }
 
     let value = 0;
-    const matches = textual_value.match(this._regexp);
+    const matches = formatted_value.match(this._regexp);
 
     if (matches) {
       matches.shift();
@@ -366,7 +370,7 @@ class TimecodeInput extends HTMLInputElement {
     return value;
   }
 
-  _setNumericalValue(value) {
+  _setValue(value) {
     this._state.value = parseFloat(value);
 
     if (isNaN(this._state.value)) {
@@ -392,31 +396,31 @@ class TimecodeInput extends HTMLInputElement {
    * @param {number} value The numercial value
    * @return {string} The textual value
    */
-  _getTextualValue(value) {
-    let textual_value = "";
+  _getFormattedValue(value) {
+    let formatted_value = "";
 
     this.constructor.SEGMENTS.forEach(({ prefix, multiplier, max }) => {
-      textual_value += prefix;
+      formatted_value += prefix;
 
       if (value === null) {
-        textual_value += this._options.placeholder;
+        formatted_value += this._options.placeholder;
       } else {
         let sub_value = parseInt((value / multiplier) % (max + 1), 10) || 0;
         sub_value = ("" + sub_value).padStart(2, "0");
 
-        textual_value += sub_value;
+        formatted_value += sub_value;
       }
     });
 
-    return textual_value;
+    return formatted_value;
   }
 
-  _setTextualValue(value) {
+  _setFormattedValue(value) {
     super.value = value;
   }
 
-  _updateTextualValue() {
-    super.value = this._getTextualValue(this._state.value);
+  _updateFormattedValue() {
+    super.value = this._getFormattedValue(this._state.value);
   }
 
   _triggerUpdate() {
@@ -425,7 +429,7 @@ class TimecodeInput extends HTMLInputElement {
 
     if (this._state._dirty) {
       this._state._dirty = false;
-      this.value = this._getNumericalValue(super.value);
+      this.value = this._getValue(super.value);
 
       this.dispatchEvent(new Event("change"));
     }
@@ -457,7 +461,7 @@ class TimecodeInput extends HTMLInputElement {
     switch (name) {
       case "placeholder":
         this._options.placeholder = newValue;
-        this._updateTextualValue();
+        this._updateFormattedValue();
         break;
 
       case "min":
@@ -465,8 +469,8 @@ class TimecodeInput extends HTMLInputElement {
         {
           const value = parseFloat(newValue);
           this._options[name] = !isNaN(value) ? value : null;
-          this._setNumericalValue(value);
-          this._updateTextualValue();
+          this._setValue(this.value);
+          this._updateFormattedValue();
         }
         break;
     }
