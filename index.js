@@ -1,4 +1,6 @@
 class TimecodeInput extends HTMLInputElement {
+  static PLACEHOLDER = "––";
+
   static SEGMENTS = [
     {
       name: "hours",
@@ -30,8 +32,33 @@ class TimecodeInput extends HTMLInputElement {
     },
   ];
 
+  /**
+   * Get a textual value from a numerical one.
+   *
+   * @param {number} value The numercial value
+   * @return {string} The textual value
+   */
+  static formatValue(value) {
+    let formatted_value = "";
+
+    this.SEGMENTS.forEach(({ prefix, multiplier, max }) => {
+      formatted_value += prefix;
+
+      if (value === null) {
+        formatted_value += this.PLACEHOLDER;
+      } else {
+        let sub_value = parseInt((value / multiplier) % (max + 1), 10) || 0;
+        sub_value = ("" + sub_value).padStart(2, "0");
+
+        formatted_value += sub_value;
+      }
+    });
+
+    return formatted_value;
+  }
+
   static get observedAttributes() {
-    return ["value", "placeholder", "min", "max"];
+    return ["value", "min", "max"];
   }
 
   constructor() {
@@ -52,7 +79,6 @@ class TimecodeInput extends HTMLInputElement {
     this._regexp = new RegExp(`^${regexp_str}$`);
 
     this._options = {
-      placeholder: "--",
       min: 0,
       max: null,
     };
@@ -316,7 +342,7 @@ class TimecodeInput extends HTMLInputElement {
         formatted_value +=
           i === index
             ? value
-            : matches[i] === this._options.placeholder
+            : matches[i] === this.constructor.PLACEHOLDER
             ? "00"
             : matches[i];
       });
@@ -353,7 +379,7 @@ class TimecodeInput extends HTMLInputElement {
    * @return {number} The numercial value
    */
   _getValue(formatted_value) {
-    if (formatted_value.indexOf(this._options.placeholder) !== -1) {
+    if (formatted_value.indexOf(this.constructor.PLACEHOLDER) !== -1) {
       return null;
     }
 
@@ -392,37 +418,12 @@ class TimecodeInput extends HTMLInputElement {
     }
   }
 
-  /**
-   * Get a textual value from a numerical one.
-   *
-   * @param {number} value The numercial value
-   * @return {string} The textual value
-   */
-  _getFormattedValue(value) {
-    let formatted_value = "";
-
-    this.constructor.SEGMENTS.forEach(({ prefix, multiplier, max }) => {
-      formatted_value += prefix;
-
-      if (value === null) {
-        formatted_value += this._options.placeholder;
-      } else {
-        let sub_value = parseInt((value / multiplier) % (max + 1), 10) || 0;
-        sub_value = ("" + sub_value).padStart(2, "0");
-
-        formatted_value += sub_value;
-      }
-    });
-
-    return formatted_value;
-  }
-
   _setFormattedValue(value) {
     super.value = value;
   }
 
   _updateFormattedValue() {
-    super.value = this._getFormattedValue(this._state.value);
+    super.value = this.constructor.formatValue(this._state.value);
   }
 
   _triggerUpdate() {
@@ -463,11 +464,6 @@ class TimecodeInput extends HTMLInputElement {
     switch (name) {
       case "value":
         this.value = newValue;
-        break;
-
-      case "placeholder":
-        this._options.placeholder = newValue;
-        this._updateFormattedValue();
         break;
 
       case "min":
