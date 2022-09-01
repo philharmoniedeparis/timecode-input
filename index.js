@@ -70,7 +70,6 @@ class TimecodeInput extends HTMLInputElement {
     this._onClick = this._onClick.bind(this);
     this._onWheel = this._onWheel.bind(this);
     this._onKeydown = this._onKeydown.bind(this);
-    this._onKeypress = this._onKeypress.bind(this);
     this._onPaste = this._onPaste.bind(this);
 
     const regexp_str = this.constructor.SEGMENTS.map((s) => {
@@ -170,88 +169,73 @@ class TimecodeInput extends HTMLInputElement {
 
     switch (key) {
       case "ArrowLeft":
-      case "ArrowRight": {
-        const index =
-          this._state.focused_segment + (key === "ArrowLeft" ? -1 : 1);
+      case "ArrowRight":
+        {
+          const index =
+            this._state.focused_segment + (key === "ArrowLeft" ? -1 : 1);
 
-        if (index >= 0 && index < this.constructor.SEGMENTS.length) {
-          this._setFocusedSegment(index);
-        }
+          if (index >= 0 && index < this.constructor.SEGMENTS.length) {
+            this._setFocusedSegment(index);
+          }
 
-        evt.preventDefault();
-        break;
-      }
-      case "ArrowUp": {
-        if (this._state.focused_segment !== null) {
-          this._incrementSegmentValue(this._state.focused_segment);
-        }
-
-        evt.preventDefault();
-        break;
-      }
-      case "ArrowDown": {
-        if (this._state.focused_segment !== null) {
-          this._decrementSegmentValue(this._state.focused_segment);
-        }
-
-        evt.preventDefault();
-        break;
-      }
-      case "Tab": {
-        const index = this._state.focused_segment + (shiftKey ? -1 : 1);
-
-        if (index >= 0 && index < this.constructor.SEGMENTS.length) {
-          this._setFocusedSegment(index);
           evt.preventDefault();
         }
-
         break;
-      }
+      case "ArrowUp":
+        {
+          if (this._state.focused_segment !== null) {
+            this._incrementSegmentValue(this._state.focused_segment);
+          }
+
+          evt.preventDefault();
+        }
+        break;
+      case "ArrowDown":
+        {
+          if (this._state.focused_segment !== null) {
+            this._decrementSegmentValue(this._state.focused_segment);
+          }
+
+          evt.preventDefault();
+        }
+        break;
+      case "Tab":
+        {
+          const index = this._state.focused_segment + (shiftKey ? -1 : 1);
+
+          if (index >= 0 && index < this.constructor.SEGMENTS.length) {
+            this._setFocusedSegment(index);
+            evt.preventDefault();
+          }
+        }
+        break;
+      case "Enter":
+        this._triggerUpdate();
+        break;
+
       default:
-        return;
-    }
-  }
+        if (this._isNumeric(key)) {
+          // Numeric key.
+          if (this._state.focused_segment < this.constructor.SEGMENTS.length) {
+            let segment_value = parseInt(
+              this._getSegmentValue(this._state.focused_segment),
+              10
+            );
 
-  _onKeypress(evt) {
-    const { key } = evt;
+            if (this._state.keys_pressed === 0 || isNaN(segment_value)) {
+              segment_value = 0;
+            }
 
-    if (
-      (typeof key === "number" ||
-        (typeof key === "string" && key.trim() !== "")) &&
-      !isNaN(key)
-    ) {
-      // Numeric key.
-      if (this._state.focused_segment < this.constructor.SEGMENTS.length) {
-        let segment_value = parseInt(
-          this._getSegmentValue(this._state.focused_segment),
-          10
-        );
+            segment_value += key;
 
-        if (this._state.keys_pressed === 0 || isNaN(segment_value)) {
-          segment_value = 0;
+            segment_value = Math.min(
+              this.constructor.SEGMENTS[this._state.focused_segment].max,
+              parseInt(segment_value, 10)
+            );
+
+            this._setSegmentValue(this._state.focused_segment, segment_value);
+          }
         }
-
-        segment_value += key;
-
-        segment_value = Math.min(
-          this.constructor.SEGMENTS[this._state.focused_segment].max,
-          parseInt(segment_value, 10)
-        );
-
-        // Pad with zeros.
-        segment_value = ("" + segment_value).padStart(2, "0");
-
-        this._setSegmentValue(this._state.focused_segment, segment_value);
-
-        if (++this._state.keys_pressed === 2) {
-          this._state.keys_pressed = 0;
-          this._state.focused_segment++;
-        }
-
-        this._updateSelection();
-      }
-    } else if (key === "Enter" && this._state._dirty) {
-      this._triggerUpdate();
     }
 
     evt.preventDefault();
@@ -270,8 +254,22 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   /**
+   * Helper function to check if a certain value represents a numeric value
+   * @param {mixed} value The value to check
+   * @return {boolean} True if the value represents a numeric value, false otherwise
+   */
+  _isNumeric(value) {
+    return (
+      (typeof value === "number" ||
+        (typeof value === "string" && value.trim() !== "")) &&
+      !isNaN(value)
+    );
+  }
+
+  /**
    * Helper function to check if a certain value is a valid textual value
    * @param {string} value The value to check
+   * @return {boolean} True if the value is a valid textual value, false otherwise
    */
   _isFormattedValueValid(value) {
     return this._regexp.test(value);
@@ -328,30 +326,31 @@ class TimecodeInput extends HTMLInputElement {
   /**
    * Helper function to set the value of a segmnet
    * @param {number} index The segment's index
-   * @param {string} value The segment's value
+   * @param {number} value The segment's value
    */
   _setSegmentValue(index, value) {
-    let formatted_value = super.value;
-    const matches = formatted_value.match(this._regexp);
-
-    if (matches) {
-      formatted_value = "";
-      matches.shift();
-
-      matches.forEach((match, i) => {
-        formatted_value += this.constructor.SEGMENTS[i].prefix;
-        formatted_value +=
-          i === index
-            ? value
-            : matches[i] === this.constructor.PLACEHOLDER
-            ? "00"
-            : matches[i];
-      });
-
-      this._setFormattedValue(formatted_value);
-
-      this._state._dirty = true;
+    let old_segment_value = parseInt(this._getSegmentValue(index), 10);
+    if (isNaN(old_segment_value)) {
+      old_segment_value = 0;
     }
+
+    let new_segment_value = parseInt(value, 10);
+    if (isNaN(new_segment_value)) {
+      new_segment_value = 0;
+    }
+
+    const diff = new_segment_value - old_segment_value;
+
+    this.value += diff * this.constructor.SEGMENTS[index].multiplier;
+    this._state.dirty = true;
+
+    if (++this._state.keys_pressed === 2) {
+      this._state.keys_pressed = 0;
+      this._state.focused_segment++;
+    }
+
+    this._updateSelection();
+    this.dispatchEvent(new Event("input"));
   }
 
   /**
@@ -360,6 +359,7 @@ class TimecodeInput extends HTMLInputElement {
    */
   _incrementSegmentValue(index) {
     this.value += this.constructor.SEGMENTS[index].multiplier;
+    this._state.dirty = true;
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -370,6 +370,7 @@ class TimecodeInput extends HTMLInputElement {
    */
   _decrementSegmentValue(index) {
     this.value -= this.constructor.SEGMENTS[index].multiplier;
+    this._state.dirty = true;
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -431,8 +432,8 @@ class TimecodeInput extends HTMLInputElement {
     this._state.keys_pressed = 0;
     this._setFocusedSegment(null);
 
-    if (this._state._dirty) {
-      this._state._dirty = false;
+    if (this._state.dirty) {
+      this._state.dirty = false;
       this.value = this._getValue(super.value);
 
       this.dispatchEvent(new Event("change"));
@@ -446,7 +447,6 @@ class TimecodeInput extends HTMLInputElement {
     this.addEventListener("click", this._onClick);
     this.addEventListener("wheel", this._onWheel);
     this.addEventListener("keydown", this._onKeydown);
-    this.addEventListener("keypress", this._onKeypress);
     this.addEventListener("paste", this._onPaste);
   }
 
@@ -457,7 +457,6 @@ class TimecodeInput extends HTMLInputElement {
     this.removeEventListener("click", this._onClick);
     this.removeEventListener("wheel", this._onWheel);
     this.removeEventListener("keydown", this._onKeydown);
-    this.removeEventListener("keypress", this._onKeypress);
     this.removeEventListener("paste", this._onPaste);
   }
 
