@@ -246,8 +246,9 @@ class TimecodeInput extends HTMLInputElement {
         if (++this._state.keys_pressed === 2) {
           this._state.keys_pressed = 0;
           this._state.focused_segment++;
-          this._updateSelection();
         }
+
+        this._updateSelection();
       }
     } else if (key === "Enter" && this._state._dirty) {
       this._triggerUpdate();
