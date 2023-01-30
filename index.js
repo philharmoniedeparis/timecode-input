@@ -47,7 +47,7 @@ class TimecodeInput extends HTMLInputElement {
       if (value === null) {
         formatted_value += this.PLACEHOLDER;
       } else {
-        let sub_value = parseInt((value / multiplier) % (max + 1), 10) || 0;
+        let sub_value = Math.round(((value / multiplier) % (max + 1)) + Number.EPSILON) || 0;
         sub_value = ("" + sub_value).padStart(2, "0");
 
         formatted_value += sub_value;
