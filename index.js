@@ -47,7 +47,7 @@ class TimecodeInput extends HTMLInputElement {
       if (value === null) {
         formatted_value += this.PLACEHOLDER;
       } else {
-        let sub_value = Math.round(((value / multiplier) % (max + 1)) + Number.EPSILON) || 0;
+        let sub_value = Math.trunc(((value + Number.EPSILON * 10) / multiplier) % (max + 1)) || 0;
         sub_value = ("" + sub_value).padStart(2, "0");
 
         formatted_value += sub_value;
@@ -230,7 +230,7 @@ class TimecodeInput extends HTMLInputElement {
 
             segment_value = Math.min(
               this.constructor.SEGMENTS[this._state.focused_segment].max,
-              parseInt(segment_value, 10)
+              segment_value
             );
 
             this._setSegmentValue(this._state.focused_segment, segment_value);
