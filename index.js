@@ -1,34 +1,36 @@
 class TimecodeInput extends HTMLInputElement {
-  static PLACEHOLDER = "––";
+  static PLACEHOLDER = "–";
+
+  static PRECISION_FACTOR = 1000;
 
   static SEGMENTS = [
     {
       name: "hours",
-      multiplier: 3600,
+      multiplier: 3600 * this.PRECISION_FACTOR,
       max: 99,
       prefix: "",
-      regex: "[–0-9]{1,2}",
+      regex: `[${this.PLACEHOLDER}0-9]{1,2}`,
     },
     {
       name: "minutes",
-      multiplier: 60,
+      multiplier: 60 * this.PRECISION_FACTOR,
       max: 59,
       prefix: ":",
-      regex: "[–0-5]?[–0-9]",
+      regex: `[${this.PLACEHOLDER}0-5]?[${this.PLACEHOLDER}0-9]`,
     },
     {
       name: "seconds",
-      multiplier: 1,
+      multiplier: 1 * this.PRECISION_FACTOR,
       max: 59,
       prefix: ":",
-      regex: "[–0-5]?[–0-9]",
+      regex: `[${this.PLACEHOLDER}0-5]?[${this.PLACEHOLDER}0-9]`,
     },
     {
       name: "centiseconds",
-      multiplier: 0.01,
+      multiplier: 0.01 * this.PRECISION_FACTOR,
       max: 99,
       prefix: ".",
-      regex: "[–0-9]{1,2}",
+      regex: `[${this.PLACEHOLDER}0-9]{1,2}`,
     },
   ];
 
@@ -45,9 +47,9 @@ class TimecodeInput extends HTMLInputElement {
       formatted_value += prefix;
 
       if (value === null) {
-        formatted_value += this.PLACEHOLDER;
+        formatted_value += `${this.PLACEHOLDER}${this.PLACEHOLDER}`;
       } else {
-        let sub_value = Math.trunc(((value + Number.EPSILON * 10) / multiplier) % (max + 1)) || 0;
+        let sub_value = parseInt((value / multiplier) % (max + 1)) || 0;
         sub_value = ("" + sub_value).padStart(2, "0");
 
         formatted_value += sub_value;
@@ -114,16 +116,15 @@ class TimecodeInput extends HTMLInputElement {
       dirty: false,
     };
 
-    this._updateFormattedValue();
+    this._setValue(super.value * this.constructor.PRECISION_FACTOR, false);
   }
 
   get value() {
-    return this._state.value;
+    return this._state.value / this.constructor.PRECISION_FACTOR;
   }
 
   set value(value) {
-    this._setValue(value);
-    this._updateFormattedValue();
+    this._setValue(value != null ? value * this.constructor.PRECISION_FACTOR : null);
   }
 
   get formattedValue() {
@@ -138,7 +139,7 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   _onBlur() {
-    this._triggerUpdate();
+    this._commitValue();
   }
 
   _onMousedown() {
@@ -210,7 +211,7 @@ class TimecodeInput extends HTMLInputElement {
         }
         break;
       case "Enter":
-        this._triggerUpdate();
+        this._commitValue();
         break;
 
       default:
@@ -246,7 +247,7 @@ class TimecodeInput extends HTMLInputElement {
     const pasted_data = clipboard_data.getData("Text");
 
     if (this._isFormattedValueValid(pasted_data)) {
-      this.value = this._getValue(pasted_data);
+      this._setValue(this._getValue(pasted_data), false);
       this.dispatchEvent(new Event("input"));
     }
 
@@ -340,9 +341,7 @@ class TimecodeInput extends HTMLInputElement {
     }
 
     const diff = new_segment_value - old_segment_value;
-
-    this.value += diff * this.constructor.SEGMENTS[index].multiplier;
-    this._state.dirty = true;
+    this._setValue(this._state.value + (diff * this.constructor.SEGMENTS[index].multiplier), false);
 
     if (++this._state.keys_pressed === 2) {
       this._state.keys_pressed = 0;
@@ -358,8 +357,7 @@ class TimecodeInput extends HTMLInputElement {
    * @param {number} index The segment's index
    */
   _incrementSegmentValue(index) {
-    this.value += this.constructor.SEGMENTS[index].multiplier;
-    this._state.dirty = true;
+    this._setValue(this._state.value + this.constructor.SEGMENTS[index].multiplier, false);
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -369,8 +367,7 @@ class TimecodeInput extends HTMLInputElement {
    * @param {number} index The segment's index
    */
   _decrementSegmentValue(index) {
-    this.value -= this.constructor.SEGMENTS[index].multiplier;
-    this._state.dirty = true;
+    this._setValue(this._state.value - this.constructor.SEGMENTS[index].multiplier, false);
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -393,51 +390,46 @@ class TimecodeInput extends HTMLInputElement {
 
       matches.forEach((match, i) => {
         value +=
-          parseInt(matches[i], 10) * this.constructor.SEGMENTS[i].multiplier;
+          parseInt(match, 10) * this.constructor.SEGMENTS[i].multiplier;
       });
     }
 
     return value;
   }
 
-  _setValue(value) {
+  _setValue(value, emitChange = true) {
+    const oldValue = this._state.value;
+
     this._state.value = parseFloat(value);
 
     if (isNaN(this._state.value)) {
       this._state.value = null;
-      return;
+    }
+    else {
+      if (this._options.min !== null) {
+        this._state.value = Math.max(this._state.value, this._options.min);
+      }
+
+      if (this._options.max !== null) {
+        this._state.value = Math.min(this._state.value, this._options.max);
+      }
     }
 
-    this._state.value =
-      Math.round((this._state.value + Number.EPSILON) * 100) / 100;
-
-    if (this._options.min !== null) {
-      this._state.value = Math.max(this._state.value, this._options.min);
+    if (emitChange && oldValue !== this._state.value) {
+      this.dispatchEvent(new Event("change"));
     }
 
-    if (this._options.max !== null) {
-      this._state.value = Math.min(this._state.value, this._options.max);
-    }
+    super.value = this.constructor.formatValue(this._state.value);
   }
 
   _setFormattedValue(value) {
     super.value = value;
   }
 
-  _updateFormattedValue() {
-    super.value = this.constructor.formatValue(this._state.value);
-  }
-
-  _triggerUpdate() {
+  _commitValue() {
     this._state.keys_pressed = 0;
     this._setFocusedSegment(null);
-
-    if (this._state.dirty) {
-      this._state.dirty = false;
-      this.value = this._getValue(super.value);
-
-      this.dispatchEvent(new Event("change"));
-    }
+    this.dispatchEvent(new Event("change"));
   }
 
   connectedCallback() {
@@ -463,16 +455,15 @@ class TimecodeInput extends HTMLInputElement {
   attributeChangedCallback(name, oldValue, newValue) {
     switch (name) {
       case "value":
-        this.value = newValue;
+        this._setValue(newValue * this.constructor.PRECISION_FACTOR);
         break;
 
       case "min":
       case "max":
         {
-          const value = parseFloat(newValue);
-          this._options[name] = !isNaN(value) ? value : null;
-          this._setValue(this.value);
-          this._updateFormattedValue();
+          const limit = parseInt(parseFloat(newValue) * this.constructor.PRECISION_FACTOR, 10);
+          this._options[name] = !isNaN(limit) ? limit : null;
+          this._setValue(this._state.value);
         }
         break;
     }
