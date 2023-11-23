@@ -16,26 +16,31 @@
     <input is="timecode-input"></input>
     <br/>
     <br/>
-    <button class="value">Set value to</button>
-    <input type="number" class="value" />
+    <button class="get">Get value</button>
+    <input type="text" class="get" disabled />
+    <br/>
+    <button class="set">Set value to</button>
+    <input type="number" step="0.01" class="set" />
     <br/>
     <button class="max">Set max to</button>
-    <input type="number" class="max" />
+    <input type="number" step="0.01" class="max" />
     <br/>
     <button class="min">Set min to</button>
-    <input type="number" class="min" />
+    <input type="number" step="0.01" class="min" />
     <br/>
     <button class="clear">Clear</button>
 
     <script>
       const input = document.querySelector("input[is='timecode-input']");
 
-      document.querySelector("button.clear").addEventListener("click", () => {
-        input.value = null;
+      input.addEventListener('change', (evt) => console.log(evt.target.value));
+
+      document.querySelector("button.get").addEventListener("click", () => {
+        document.querySelector("input.get").value = input.value;
       });
 
-      document.querySelector("button.value").addEventListener("click", () => {
-        input.value = document.querySelector("input.value").value;
+      document.querySelector("button.set").addEventListener("click", () => {
+        input.value = document.querySelector("input.set").value;
       });
 
       document.querySelector("button.max").addEventListener("click", () => {
@@ -44,6 +49,10 @@
 
       document.querySelector("button.min").addEventListener("click", () => {
         input.setAttribute("min", document.querySelector("input.min").value);
+      });
+
+      document.querySelector("button.clear").addEventListener("click", () => {
+        input.value = null;
       });
     </script>
   </body>
