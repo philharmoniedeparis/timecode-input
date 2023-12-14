@@ -46,7 +46,7 @@ class TimecodeInput extends HTMLInputElement {
     this.SEGMENTS.forEach(({ prefix, multiplier, max }) => {
       formatted_value += prefix;
 
-      if (value === null) {
+      if (value == null) {
         formatted_value += `${this.PLACEHOLDER}${this.PLACEHOLDER}`;
       } else {
         let sub_value = parseInt((value / multiplier) % (max + 1)) || 0;
@@ -120,11 +120,12 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   get value() {
-    return this._state.value / this.constructor.PRECISION_FACTOR;
+    return this._state.value != null ? this._state.value / this.constructor.PRECISION_FACTOR : null;
   }
 
   set value(value) {
-    this._setValue(value != null ? value * this.constructor.PRECISION_FACTOR : null);
+    const numeric_value = parseFloat(value);
+    this._setValue(!isNaN(numeric_value) ? numeric_value * this.constructor.PRECISION_FACTOR : null);
   }
 
   get formattedValue() {
@@ -153,7 +154,7 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   _onWheel(evt) {
-    if (this._state.focused_segment !== null) {
+    if (this._state.focused_segment != null) {
       if (evt.deltaY < 0) {
         this._incrementSegmentValue(this._state.focused_segment);
       } else if (evt.deltaY > 0) {
@@ -184,7 +185,7 @@ class TimecodeInput extends HTMLInputElement {
         break;
       case "ArrowUp":
         {
-          if (this._state.focused_segment !== null) {
+          if (this._state.focused_segment != null) {
             this._incrementSegmentValue(this._state.focused_segment);
           }
 
@@ -193,7 +194,7 @@ class TimecodeInput extends HTMLInputElement {
         break;
       case "ArrowDown":
         {
-          if (this._state.focused_segment !== null) {
+          if (this._state.focused_segment != null) {
             this._decrementSegmentValue(this._state.focused_segment);
           }
 
@@ -277,7 +278,7 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   _updateSelection() {
-    if (this._state.focused_segment !== null) {
+    if (this._state.focused_segment != null) {
       const start = this._state.focused_segment * 3;
       const end = start + 2;
 
@@ -406,11 +407,11 @@ class TimecodeInput extends HTMLInputElement {
       this._state.value = null;
     }
     else {
-      if (this._options.min !== null) {
+      if (this._options.min != null) {
         this._state.value = Math.max(this._state.value, this._options.min);
       }
 
-      if (this._options.max !== null) {
+      if (this._options.max != null) {
         this._state.value = Math.min(this._state.value, this._options.max);
       }
     }
@@ -455,15 +456,15 @@ class TimecodeInput extends HTMLInputElement {
   attributeChangedCallback(name, oldValue, newValue) {
     switch (name) {
       case "value":
-        this._setValue(newValue * this.constructor.PRECISION_FACTOR);
+        this.value = newValue;
         break;
 
       case "min":
       case "max":
         {
-          const limit = parseInt(parseFloat(newValue) * this.constructor.PRECISION_FACTOR, 10);
-          this._options[name] = !isNaN(limit) ? limit : null;
-          this._setValue(this._state.value);
+          const limit = parseFloat(newValue);
+          this._options[name] = !isNaN(limit) ? parseInt(limit * this.constructor.PRECISION_FACTOR, 10) : null;
+          if (this._state.value != null) this._setValue(this._state.value);
         }
         break;
     }
