@@ -7,13 +7,13 @@
     <title>Timecode input demo</title>
     <script src="./index.js" type="module"></script>
     <style>
-      input[is="timecode-input"] {
+      timecode-input::part(input) {
         text-align: center;
       }
     </style>
   </head>
   <body>
-    <input is="timecode-input"></input>
+    <timecode-input></timecode-input>
     <br/>
     <br/>
     <button class="get">Get value</button>
@@ -31,7 +31,7 @@
     <button class="clear">Clear</button>
 
     <script>
-      const input = document.querySelector("input[is='timecode-input']");
+      const input = document.querySelector("timecode-input");
 
       input.addEventListener('change', (evt) => console.log(evt.target.value));
 

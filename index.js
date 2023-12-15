@@ -1,4 +1,4 @@
-class TimecodeInput extends HTMLInputElement {
+class TimecodeInput extends HTMLElement {
   static PLACEHOLDER = "–";
 
   static PRECISION_FACTOR = 1000;
@@ -64,7 +64,7 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   constructor() {
-    super();
+    super().attachShadow({mode: 'open'});
 
     this._onFocus = this._onFocus.bind(this);
     this._onBlur = this._onBlur.bind(this);
@@ -73,6 +73,12 @@ class TimecodeInput extends HTMLInputElement {
     this._onWheel = this._onWheel.bind(this);
     this._onKeydown = this._onKeydown.bind(this);
     this._onPaste = this._onPaste.bind(this);
+
+    this._input = document.createElement('input');
+    this._input.setAttribute('type', 'text');
+    this._input.setAttribute('part', 'input');
+
+    this.shadowRoot.appendChild(this._input);
 
     const regexp_str = this.constructor.SEGMENTS.map((s) => {
       return `${s.prefix}(${s.regex})`;
@@ -116,7 +122,7 @@ class TimecodeInput extends HTMLInputElement {
       dirty: false,
     };
 
-    this._setValue(super.value * this.constructor.PRECISION_FACTOR, false);
+    this._setValue(this._input.value * this.constructor.PRECISION_FACTOR, false);
   }
 
   get value() {
@@ -129,7 +135,7 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   get formattedValue() {
-    return super.value;
+    return this._input.value;
   }
 
   _onFocus() {
@@ -140,7 +146,9 @@ class TimecodeInput extends HTMLInputElement {
   }
 
   _onBlur() {
-    this._commitValue();
+    this._state.keys_pressed = 0;
+    this._setFocusedSegment(null);
+    this.dispatchEvent(new Event("change"));
   }
 
   _onMousedown() {
@@ -212,7 +220,8 @@ class TimecodeInput extends HTMLInputElement {
         }
         break;
       case "Enter":
-        this._commitValue();
+        this._state.keys_pressed = 0;
+        this.dispatchEvent(new Event("change"));
         break;
 
       default:
@@ -282,8 +291,8 @@ class TimecodeInput extends HTMLInputElement {
       const start = this._state.focused_segment * 3;
       const end = start + 2;
 
-      this.setSelectionRange(0, 0);
-      this.setSelectionRange(start, end);
+      this._input.setSelectionRange(0, 0);
+      this._input.setSelectionRange(start, end);
     }
   }
 
@@ -299,11 +308,11 @@ class TimecodeInput extends HTMLInputElement {
   _getCaretPosition() {
     let caretPosition = 0;
 
-    if (typeof this.selectionStart === "number") {
+    if (typeof this._input.selectionStart === "number") {
       caretPosition =
-        this.selectionDirection === "backward"
-          ? this.selectionStart
-          : this.selectionEnd;
+      this._input.selectionDirection === "backward"
+          ? this._input.selectionStart
+          : this._input.selectionEnd;
     }
 
     return caretPosition;
@@ -315,7 +324,7 @@ class TimecodeInput extends HTMLInputElement {
    * @return {string} The segment's value
    */
   _getSegmentValue(index) {
-    const matches = super.value.match(this._regexp);
+    const matches = this._input.value.match(this._regexp);
 
     if (matches) {
       matches.shift();
@@ -420,37 +429,31 @@ class TimecodeInput extends HTMLInputElement {
       this.dispatchEvent(new Event("change"));
     }
 
-    super.value = this.constructor.formatValue(this._state.value);
+    this._input.value = this.constructor.formatValue(this._state.value);
   }
 
   _setFormattedValue(value) {
-    super.value = value;
-  }
-
-  _commitValue() {
-    this._state.keys_pressed = 0;
-    this._setFocusedSegment(null);
-    this.dispatchEvent(new Event("change"));
+    this._input.value = value;
   }
 
   connectedCallback() {
-    this.addEventListener("focus", this._onFocus);
-    this.addEventListener("blur", this._onBlur);
-    this.addEventListener("mousedown", this._onMousedown);
-    this.addEventListener("click", this._onClick);
-    this.addEventListener("wheel", this._onWheel);
-    this.addEventListener("keydown", this._onKeydown);
-    this.addEventListener("paste", this._onPaste);
+    this._input.addEventListener("focus", this._onFocus);
+    this._input.addEventListener("blur", this._onBlur);
+    this._input.addEventListener("mousedown", this._onMousedown);
+    this._input.addEventListener("click", this._onClick);
+    this._input.addEventListener("wheel", this._onWheel);
+    this._input.addEventListener("keydown", this._onKeydown);
+    this._input.addEventListener("paste", this._onPaste);
   }
 
   disconnectedCallback() {
-    this.removeEventListener("focus", this._onFocus);
-    this.removeEventListener("blur", this._onBlur);
-    this.removeEventListener("mousedown", this._onMousedown);
-    this.removeEventListener("click", this._onClick);
-    this.removeEventListener("wheel", this._onWheel);
-    this.removeEventListener("keydown", this._onKeydown);
-    this.removeEventListener("paste", this._onPaste);
+    this._input.removeEventListener("focus", this._onFocus);
+    this._input.removeEventListener("blur", this._onBlur);
+    this._input.removeEventListener("mousedown", this._onMousedown);
+    this._input.removeEventListener("click", this._onClick);
+    this._input.removeEventListener("wheel", this._onWheel);
+    this._input.removeEventListener("keydown", this._onKeydown);
+    this._input.removeEventListener("paste", this._onPaste);
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -474,7 +477,5 @@ class TimecodeInput extends HTMLInputElement {
 export default TimecodeInput;
 
 if (!window.customElements.get("timecode-input")) {
-  window.customElements.define("timecode-input", TimecodeInput, {
-    extends: "input",
-  });
+  window.customElements.define("timecode-input", TimecodeInput);
 }
