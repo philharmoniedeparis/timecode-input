@@ -34,13 +34,16 @@ class TimecodeInput extends HTMLElement {
     },
   ];
 
+  static observedAttributes = ["value", "min", "max"];
+
   /**
    * Get a textual value from a numerical one.
    *
    * @param {number} value The numercial value
+   * @param {boolean} _internal Whether the value is internal, i.e. multiplied by the precision factor
    * @return {string} The textual value
    */
-  static formatValue(value) {
+  static formatValue(value, _internal = false) {
     let formatted_value = "";
 
     this.SEGMENTS.forEach(({ prefix, multiplier, max }) => {
@@ -49,7 +52,8 @@ class TimecodeInput extends HTMLElement {
       if (value == null) {
         formatted_value += `${this.PLACEHOLDER}${this.PLACEHOLDER}`;
       } else {
-        let sub_value = parseInt((value / multiplier) % (max + 1)) || 0;
+        let sub_value = _internal ? value : value * this.PRECISION_FACTOR;
+        sub_value = parseInt((sub_value / multiplier) % (max + 1)) || 0;
         sub_value = ("" + sub_value).padStart(2, "0");
 
         formatted_value += sub_value;
@@ -57,10 +61,6 @@ class TimecodeInput extends HTMLElement {
     });
 
     return formatted_value;
-  }
-
-  static get observedAttributes() {
-    return ["value", "min", "max"];
   }
 
   constructor() {
@@ -429,7 +429,7 @@ class TimecodeInput extends HTMLElement {
       this.dispatchEvent(new Event("change"));
     }
 
-    this._input.value = this.constructor.formatValue(this._state.value);
+    this._input.value = this.constructor.formatValue(this._state.value, true);
   }
 
   _setFormattedValue(value) {
