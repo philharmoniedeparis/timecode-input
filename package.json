@@ -1,6 +1,6 @@
 {
     "name": "timecode-input",
-    "version": "1.0.3",
+    "version": "2.0.0",
     "description": "A custom HTML input element for media timecodes",
     "private": true,
     "main": "index.js",
