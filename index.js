@@ -1,4 +1,17 @@
-class TimecodeInput extends HTMLElement {
+const stylesheet = new CSSStyleSheet()
+stylesheet.replaceSync(`
+  :host {
+    display: inline-block;
+  }
+
+  input {
+    text-align: center;
+  }
+`);
+
+export default class TimecodeInput extends HTMLElement {
+  static formAssociated = true;
+
   static PLACEHOLDER = "–";
 
   static PRECISION_FACTOR = 1000;
@@ -34,7 +47,7 @@ class TimecodeInput extends HTMLElement {
     },
   ];
 
-  static observedAttributes = ["value", "min", "max"];
+  static observedAttributes = ["value", "min", "max", "readonly", "disabled", "required"];
 
   /**
    * Get a textual value from a numerical one.
@@ -64,7 +77,13 @@ class TimecodeInput extends HTMLElement {
   }
 
   constructor() {
-    super().attachShadow({mode: 'open'});
+    super();
+
+    this.attachShadow({mode: 'open'});
+    this.shadowRoot.adoptedStyleSheets = [stylesheet];
+
+    this._internals = this.attachInternals();
+    this._internals.ariaRole = 'input';
 
     this._onFocus = this._onFocus.bind(this);
     this._onBlur = this._onBlur.bind(this);
@@ -80,7 +99,7 @@ class TimecodeInput extends HTMLElement {
 
     this.shadowRoot.appendChild(this._input);
 
-    const regexp_str = this.constructor.SEGMENTS.map((s) => {
+    const regexp_str = TimecodeInput.SEGMENTS.map((s) => {
       return `${s.prefix}(${s.regex})`;
     }).join("");
     this._regexp = new RegExp(`^${regexp_str}$`);
@@ -88,6 +107,7 @@ class TimecodeInput extends HTMLElement {
     this._options = {
       min: 0,
       max: null,
+      required: false,
     };
 
     this._state = {
@@ -122,16 +142,61 @@ class TimecodeInput extends HTMLElement {
       dirty: false,
     };
 
-    this._setValue(this._input.value * this.constructor.PRECISION_FACTOR, false);
+    this._setValue(this._input.value * TimecodeInput.PRECISION_FACTOR, false);
   }
 
   get value() {
-    return this._state.value != null ? this._state.value / this.constructor.PRECISION_FACTOR : null;
+    return this._state.value != null ? this._state.value / TimecodeInput.PRECISION_FACTOR : null;
   }
 
   set value(value) {
     const numeric_value = parseFloat(value);
-    this._setValue(!isNaN(numeric_value) ? numeric_value * this.constructor.PRECISION_FACTOR : null);
+    this._setValue(!isNaN(numeric_value) ? numeric_value * TimecodeInput.PRECISION_FACTOR : null);
+  }
+
+  get min(){
+    return this._options.min;
+  }
+
+  set min(value){
+    const limit = parseFloat(value);
+    this._options.min = !isNaN(limit) ? parseInt(limit * TimecodeInput.PRECISION_FACTOR, 10) : null;
+    this._updateValidity();
+  }
+
+  get max(){
+    return this._options.max;
+  }
+
+  set max(value){
+    const limit = parseFloat(value);
+    this._options.max = !isNaN(limit) ? parseInt(limit * TimecodeInput.PRECISION_FACTOR, 10) : null;
+    this._updateValidity();
+  }
+
+  get required(){
+    return this._options.required;
+  }
+
+  set required(value){
+    this._options.required = value;
+    this._updateValidity();
+  }
+
+  get readOnly(){
+    return this._input.readOnly;
+  }
+
+  set readOnly(value){
+    this._input.readOnly = value;
+  }
+
+  get disabled(){
+    return this._input.disabled;
+  }
+
+  set disabled(value){
+    this._input.disabled = value;
   }
 
   get formattedValue() {
@@ -162,6 +227,8 @@ class TimecodeInput extends HTMLElement {
   }
 
   _onWheel(evt) {
+    if (this.readOnly) return;
+
     if (this._state.focused_segment != null) {
       if (evt.deltaY < 0) {
         this._incrementSegmentValue(this._state.focused_segment);
@@ -172,6 +239,8 @@ class TimecodeInput extends HTMLElement {
   }
 
   _onKeydown(evt) {
+    if (this.readOnly) return;
+
     const { key, shiftKey, altKey } = evt;
 
     // Skip if Alt key is pressed.
@@ -184,7 +253,7 @@ class TimecodeInput extends HTMLElement {
           const index =
             this._state.focused_segment + (key === "ArrowLeft" ? -1 : 1);
 
-          if (index >= 0 && index < this.constructor.SEGMENTS.length) {
+          if (index >= 0 && index < TimecodeInput.SEGMENTS.length) {
             this._setFocusedSegment(index);
           }
 
@@ -213,7 +282,7 @@ class TimecodeInput extends HTMLElement {
         {
           const index = this._state.focused_segment + (shiftKey ? -1 : 1);
 
-          if (index >= 0 && index < this.constructor.SEGMENTS.length) {
+          if (index >= 0 && index < TimecodeInput.SEGMENTS.length) {
             this._setFocusedSegment(index);
             evt.preventDefault();
           }
@@ -227,7 +296,7 @@ class TimecodeInput extends HTMLElement {
       default:
         if (this._isNumeric(key)) {
           // Numeric key.
-          if (this._state.focused_segment < this.constructor.SEGMENTS.length) {
+          if (this._state.focused_segment < TimecodeInput.SEGMENTS.length) {
             let segment_value = parseInt(
               this._getSegmentValue(this._state.focused_segment),
               10
@@ -240,7 +309,7 @@ class TimecodeInput extends HTMLElement {
             segment_value += key;
 
             segment_value = Math.min(
-              this.constructor.SEGMENTS[this._state.focused_segment].max,
+              TimecodeInput.SEGMENTS[this._state.focused_segment].max,
               segment_value
             );
 
@@ -253,6 +322,8 @@ class TimecodeInput extends HTMLElement {
   }
 
   _onPaste(evt) {
+    if (this.readOnly) return;
+
     const clipboard_data = evt.clipboardData || window.clipboardData;
     const pasted_data = clipboard_data.getData("Text");
 
@@ -351,7 +422,7 @@ class TimecodeInput extends HTMLElement {
     }
 
     const diff = new_segment_value - old_segment_value;
-    this._setValue(this._state.value + (diff * this.constructor.SEGMENTS[index].multiplier), false);
+    this._setValue(this._state.value + (diff * TimecodeInput.SEGMENTS[index].multiplier), false);
 
     if (++this._state.keys_pressed === 2) {
       this._state.keys_pressed = 0;
@@ -367,7 +438,12 @@ class TimecodeInput extends HTMLElement {
    * @param {number} index The segment's index
    */
   _incrementSegmentValue(index) {
-    this._setValue(this._state.value + this.constructor.SEGMENTS[index].multiplier, false);
+    let value = this._state.value + TimecodeInput.SEGMENTS[index].multiplier;
+
+    if (this.max != null) value = Math.min(value, this.max);
+
+    this._setValue(value, false);
+
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -377,7 +453,12 @@ class TimecodeInput extends HTMLElement {
    * @param {number} index The segment's index
    */
   _decrementSegmentValue(index) {
-    this._setValue(this._state.value - this.constructor.SEGMENTS[index].multiplier, false);
+    let value = this._state.value - TimecodeInput.SEGMENTS[index].multiplier;
+
+    if (this.min != null) value = Math.max(value, this.min);
+
+    this._setValue(value, false);
+
     this._updateSelection();
     this.dispatchEvent(new Event("input"));
   }
@@ -388,7 +469,7 @@ class TimecodeInput extends HTMLElement {
    * @return {number} The numercial value
    */
   _getValue(formatted_value) {
-    if (formatted_value.indexOf(this.constructor.PLACEHOLDER) !== -1) {
+    if (formatted_value.indexOf(TimecodeInput.PLACEHOLDER) !== -1) {
       return null;
     }
 
@@ -400,7 +481,7 @@ class TimecodeInput extends HTMLElement {
 
       matches.forEach((match, i) => {
         value +=
-          parseInt(match, 10) * this.constructor.SEGMENTS[i].multiplier;
+          parseInt(match, 10) * TimecodeInput.SEGMENTS[i].multiplier;
       });
     }
 
@@ -415,25 +496,45 @@ class TimecodeInput extends HTMLElement {
     if (isNaN(this._state.value)) {
       this._state.value = null;
     }
-    else {
-      if (this._options.min != null) {
-        this._state.value = Math.max(this._state.value, this._options.min);
-      }
-
-      if (this._options.max != null) {
-        this._state.value = Math.min(this._state.value, this._options.max);
-      }
-    }
 
     if (emitChange && oldValue !== this._state.value) {
       this.dispatchEvent(new Event("change"));
     }
 
-    this._input.value = this.constructor.formatValue(this._state.value, true);
+    this._input.value = TimecodeInput.formatValue(this._state.value, true);
+
+    this._internals.setFormValue(this._state.value);
+
+    this._updateValidity();
   }
 
   _setFormattedValue(value) {
     this._input.value = value;
+  }
+
+  _updateValidity() {
+    if (this._state.value == null) {
+      if (this.required) {
+        this._internals.setValidity({ valueMissing: true }, 'Please enter a value', this._input);
+      } else {
+        this._internals.setValidity({});
+      }
+      return;
+    }
+
+    if (this.min != null && this._state.value < this.min) {
+      const min = TimecodeInput.formatValue(this.min);
+      this._internals.setValidity({ rangeUnderflow: true }, `Please select a value that is greater than ${min}`, this._input);
+      return;
+    }
+
+    if (this.max != null && this._state.value > this.max) {
+      const max = TimecodeInput.formatValue(this.max);
+      this._internals.setValidity({ rangeOverflow : true }, `Please select a value that is less than ${max}`, this._input);
+      return;
+    }
+
+    this._internals.setValidity({});
   }
 
   connectedCallback() {
@@ -459,22 +560,17 @@ class TimecodeInput extends HTMLElement {
   attributeChangedCallback(name, oldValue, newValue) {
     switch (name) {
       case "value":
-        this.value = newValue;
-        break;
-
       case "min":
       case "max":
-        {
-          const limit = parseFloat(newValue);
-          this._options[name] = !isNaN(limit) ? parseInt(limit * this.constructor.PRECISION_FACTOR, 10) : null;
-          if (this._state.value != null) this._setValue(this._state.value);
-        }
+        this[name] = newValue;
+        break;
+
+      default:
+        this[name] = newValue == null ? null : true;
         break;
     }
   }
 }
-
-export default TimecodeInput;
 
 if (!window.customElements.get("timecode-input")) {
   window.customElements.define("timecode-input", TimecodeInput);
